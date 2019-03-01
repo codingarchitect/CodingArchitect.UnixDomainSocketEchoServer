@@ -13,26 +13,26 @@ namespace CodingArchitect.UnixDomainSocketEchoServer
   public class SocketServer 
   {
     private const int BufferSize = 4096;
-    private readonly int port;
-    private readonly IPAddress address;
+    private readonly EndPoint address;
     private readonly Func<string, string> requestProcessor;
     public SocketServer(
-      int port,
-      IPAddress address = null,
+      EndPoint address,
       Func<string, string> requestProcessor = null)
     {
-      this.port = port;
-      this.address = address == null ? IPAddress.Parse("0.0.0.0") : address;
+      this.address = address == null ? 
+        new IPEndPoint(IPAddress.Parse("0.0.0.0"), 6789) : address;
       this.requestProcessor = requestProcessor == null ? Echo : requestProcessor;
     }
 
     public async void Run()
     {
-      Socket listener = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-      listener.Bind(new IPEndPoint(address, port));
+      var protocolType = address.AddressFamily == AddressFamily.InterNetwork ?
+        ProtocolType.Tcp : ProtocolType.Unspecified;
+      Socket listener = new Socket(address.AddressFamily, SocketType.Stream, protocolType);
+      listener.Bind(address);
       listener.Listen(100);
-      Console.Write("Service is now running");
-      Console.WriteLine(" on port " + this.port);
+      Console.WriteLine("Service is now running on '{0}'", address);
+      
       while (true) {
         try {
           var client = await listener.AcceptAsync();
