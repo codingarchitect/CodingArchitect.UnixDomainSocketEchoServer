@@ -15,12 +15,15 @@ namespace CodingArchitect.UnixDomainSocketEchoServer
     private const int BufferSize = 4096;
     private readonly EndPoint address;
     private readonly Func<string, string> requestProcessor;
+
+    private Socket listener;
     public SocketServer(
       EndPoint address,
       Func<string, string> requestProcessor = null)
     {
       this.address = address == null ? 
-        new IPEndPoint(IPAddress.Parse("0.0.0.0"), 6789) : address;
+        new UnixDomainSocketEndPoint(GetRandomNonExistingFilePath()) :
+        address;
       this.requestProcessor = requestProcessor == null ? Echo : requestProcessor;
     }
 
@@ -28,7 +31,7 @@ namespace CodingArchitect.UnixDomainSocketEchoServer
     {
       var protocolType = address.AddressFamily == AddressFamily.InterNetwork ?
         ProtocolType.Tcp : ProtocolType.Unspecified;
-      Socket listener = new Socket(address.AddressFamily, SocketType.Stream, protocolType);
+      listener = new Socket(address.AddressFamily, SocketType.Stream, protocolType);
       listener.Bind(address);
       listener.Listen(100);
       Console.WriteLine("Service is now running on '{0}'", address);
@@ -79,6 +82,33 @@ namespace CodingArchitect.UnixDomainSocketEchoServer
     public static string Echo(string request)
     {
       return request;
+    }
+
+    public void Close()
+    {
+      try 
+      {
+        if (listener.Connected)
+        {
+          listener.Shutdown(SocketShutdown.Both);
+        }
+        listener.Close();
+      }
+      catch(Exception ex)
+      {
+        Console.WriteLine("[Server] Unable to close socket '{0}'", ex);
+      }
+    }
+
+    private static string GetRandomNonExistingFilePath()
+    {
+      string result;
+      do
+      {
+        result = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sock");
+      }
+      while (File.Exists(result));
+      return result;
     }
   }
 }
