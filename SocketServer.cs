@@ -49,26 +49,32 @@ namespace CodingArchitect.UnixDomainSocketEchoServer
 
     private async void ClientLoop(Socket client)
     {
-      var buffer = new byte[BufferSize];        
+      var buffer = new byte[BufferSize];
       string clientEndPoint = client.RemoteEndPoint.ToString();
       Console.WriteLine("Received connection request from {0}", clientEndPoint);
       try 
       {
         using(NetworkStream networkStream = new NetworkStream(client))
         {
-          while (true) 
-          {
-            var byteCount = await networkStream.ReadAsync(buffer, 0, buffer.Length);
+          var bufferString = new StringBuilder();
+          int byteCount = 0;
+          bool hasEndOfTransmissionMarker = false;
+          do
+          {          
+            byteCount = await networkStream.ReadAsync(buffer, 0, buffer.Length);
             if (byteCount > 0)
             {
-              var request = Encoding.UTF8.GetString(buffer, 0, byteCount);
-              Console.WriteLine("[Server] Client {0} wrote {1}", clientEndPoint, request);
-              var response = requestProcessor(request);
-              await networkStream.WriteAsync(Encoding.UTF8.GetBytes(response), 0, response.Length);
+              hasEndOfTransmissionMarker = buffer[byteCount-1] == 0;
+              if (hasEndOfTransmissionMarker)
+                bufferString.Append(Encoding.UTF8.GetString(buffer, 0, byteCount-1));
+              else
+                bufferString.Append(Encoding.UTF8.GetString(buffer, 0, byteCount));  
             }
-            else
-              break; // Client closed connection
           }
+          while ((hasEndOfTransmissionMarker == false) && (byteCount > 0));
+          Console.WriteLine("[Server] Client {0} wrote {1}", clientEndPoint, bufferString);
+          var response = requestProcessor(bufferString.ToString());
+          await networkStream.WriteAsync(Encoding.UTF8.GetBytes(response + "\0"), 0, response.Length + 1);
         }
         client.Close();
       }
