@@ -12,7 +12,8 @@ namespace CodingArchitect.UnixDomainSocketEchoServer
       // int port = 6789;        
       SocketServer server = new SocketServer(
         // new IPEndPoint(IPAddress.Parse("0.0.0.0"), port)
-        new UnixDomainSocketEndPoint(GetRandomNonExistingFilePath())
+        // new UnixDomainSocketEndPoint(GetRandomNonExistingFilePath())
+        new UnixDomainSocketEndPoint(GetFilePath())
       );
       try
       {
@@ -34,6 +35,12 @@ namespace CodingArchitect.UnixDomainSocketEchoServer
         result = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sock");
       }
       while (File.Exists(result));
+      return result;
+    }
+
+    private static string GetFilePath()
+    {
+      var result = Path.Combine(Path.GetTempPath(), "echoserver.sock");
       return result;
     }
   }
